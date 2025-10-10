@@ -127,9 +127,9 @@ async def transcribe_audio_deepgram(
             "utterances": speaker_labels_enabled
         }
 
-        # Combine into a single argument with an alternative key
+        # Combine into a single argument with corrected key
         transcribe_data = {
-            "data": buffer_data,  # Trying "data" instead of "buffer"
+            "data": buffer_data,  # Corrected from "path" to "data"
             **{k: v for k, v in options.items() if v is not None}  # Include only valid options
         }
 
