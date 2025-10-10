@@ -1,6 +1,6 @@
 # deepgram_service.py
 # Dedicated FastAPI service for Deepgram transcription.
-# ==============================================================================
+# ====================================================
 
 import logging
 import sys
@@ -146,7 +146,8 @@ async def transcribe_audio_deepgram(
                 for utterance in utterances:
                     if isinstance(utterance, dict) and 'speaker' in utterance and 'transcript' in utterance:
                         speaker_num = utterance['speaker'] + 1
-                        formatted_text.append(f"Speaker {speaker_num}: {utterance['transcript']}")
+                        # Updated to include <strong> tags for consistency with main.py expectation
+                        formatted_text.append(f"<strong>Speaker {speaker_num}:</strong> {utterance['transcript']}")
                 if formatted_text:
                     transcript_text = "\n".join(formatted_text)
                     has_speaker_labels = True
@@ -166,7 +167,7 @@ async def transcribe_audio_deepgram(
     finally:
         # Cleanup
         for path in [tmp_path, compressed_path]:
-            if os.path.exists(path) and path != tmp_path:
+            if os.path.exists(path) and path != tmp_path: # Ensure we don't try to delete the original tmp_path if it was used directly
                 os.unlink(path)
                 logger.info(f"Cleaned up temp file: {path}")
 
