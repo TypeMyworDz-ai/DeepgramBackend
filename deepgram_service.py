@@ -13,10 +13,8 @@ from dotenv import load_dotenv
 
 # CORRECTED IMPORTS for deepgram-sdk==5.0.0
 from deepgram import DeepgramClient
-from deepgram.client.options import ClientOptions as DeepgramClientOptions # Renamed and moved
-from deepgram.features.prerecorded.options import PrerecordedOptions # Moved
-# LiveTranscriptionEvents, LiveOptions are for live transcription, not prerecorded.
-# Removed them as they are not used in this service's current functionality.
+from deepgram.options import ClientOptions as DeepgramClientOptions # Correct import path for ClientOptions
+from deepgram.transcription.prerecorded import PrerecordedOptions # Correct import path for PrerecordedOptions
 
 from pydub import AudioSegment
 from typing import Optional
@@ -35,7 +33,7 @@ load_dotenv()
 
 # Deepgram API Key
 DEEPGRAM_API_KEY = os.environ.get("DEEPGRAM_API_KEY")
-logger.info(f"DEBUG: Environment variable 'DEEPGRAM_API_KEY' found: {bool(DEEPgramClientOptions)}")
+logger.info(f"DEBUG: Environment variable 'DEEPGRAM_API_KEY' found: {bool(DEEPGRAM_API_KEY)}")
 
 if not DEEPGRAM_API_KEY:
     logger.error("DEEPGRAM_API_KEY not configured. Deepgram service will not function.")
@@ -44,7 +42,6 @@ if not DEEPGRAM_API_KEY:
 deepgram_client = None
 if DEEPGRAM_API_KEY:
     try:
-        # It's good practice to pass options explicitly
         # Instantiating ClientOptions directly
         config: DeepgramClientOptions = DeepgramClientOptions(
             verbose=logging.DEBUG if os.environ.get("DEEPGRAM_DEBUG") else logging.INFO
@@ -96,7 +93,7 @@ def compress_audio_for_transcription(input_path: str, output_path: str = None) -
         
     except Exception as e:
         logger.error(f"Error compressing audio: {e}")
-        logger.warning(f"Compression failed for {input_path}, returning original.")
+        logger.warning(f"Compression failed for {input_path}, returning original.&quot;")
         return input_path
 
 @app.post("/transcribe")
@@ -139,7 +136,7 @@ async def transcribe_audio_deepgram(
         # Transcribe (run in thread to avoid blocking)
         # CORRECTED LINE for deepgram-sdk==5.0.0
         response = await asyncio.to_thread(
-            deepgram_client.listen.prerecorded.v("1").transcribe_file,
+            deepgram_client.listen.prerecorded.transcribe_file, # No .v("1") needed for SDK v5.x
             buffer_data,
             options
         )
