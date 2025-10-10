@@ -40,8 +40,8 @@ if not DEEPGRAM_API_KEY:
 deepgram_client = None
 if DEEPGRAM_API_KEY:
     try:
-        # Remove verbose parameter and rely on global logging configuration
-        deepgram_client = DeepgramClient(DEEPGRAM_API_KEY)
+        # Use api_key as a keyword argument to avoid positional argument issues
+        deepgram_client = DeepgramClient(api_key=DEEPGRAM_API_KEY)
         logger.info("Deepgram client initialized successfully.")
     except Exception as e:
         logger.error(f"Error initializing Deepgram client: {e}")
