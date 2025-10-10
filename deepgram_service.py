@@ -11,7 +11,7 @@ import asyncio
 from fastapi import FastAPI, File, UploadFile, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-from deepgram import DeepgramClient  # Deepgram SDK
+from deepgram import DeepgramClient
 from pydub import AudioSegment
 from typing import Optional
 
@@ -38,7 +38,7 @@ if not DEEPGRAM_API_KEY:
 deepgram_client = None
 if DEEPGRAM_API_KEY:
     try:
-        deepgram_client = DeepgramClient(DEEPGRAM_API_KEY)
+        deepgram_client = DeepgramClient.from_env()
         logger.info("Deepgram client initialized successfully.")
     except Exception as e:
         logger.error(f"Error initializing Deepgram client: {e}")
@@ -126,7 +126,7 @@ async def transcribe_audio_deepgram(
 
         # Transcribe (run in thread to avoid blocking)
         response = await asyncio.to_thread(
-            deepgram_client.listen.v1.media.transcribe_file,
+            deepgram_client.listen.v("1").media.transcribe_file,
             request=buffer_data,
             **options
         )
@@ -166,7 +166,7 @@ async def transcribe_audio_deepgram(
     finally:
         # Cleanup
         for path in [tmp_path, compressed_path]:
-            if os.path.exists(path) and path != tmp_path:  # Avoid double-delete
+            if os.path.exists(path) and path != tmp_path:
                 os.unlink(path)
                 logger.info(f"Cleaned up temp file: {path}")
 
