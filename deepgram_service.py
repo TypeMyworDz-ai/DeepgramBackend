@@ -11,9 +11,8 @@ from fastapi import FastAPI, File, UploadFile, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-# FIX: Corrected imports for deepgram-sdk==5.0.0.
-from deepgram import DeepgramClient, PrerecordedOptions 
-# Note: LiveOptions removed as it's not used.
+# FIX: Removed import for PrerecordedOptions and LiveOptions to avoid ImportError.
+from deepgram import DeepgramClient 
 
 from pydub import AudioSegment
 from typing import Optional
@@ -116,23 +115,23 @@ async def transcribe_audio_deepgram(
         # 2. Compress audio 
         compressed_path = compress_audio_for_transcription(tmp_path)
 
-        # 3. Prepare transcription options using the dedicated Pydantic class
-        # Note: We are using the PrerecordedOptions object which is the correct format for v5
-        options = PrerecordedOptions(
-            model="nova-3",
-            language=language_code,
-            smart_format=True,
-            punctuate=True,
-            diarize=speaker_labels_enabled,
-            utterances=speaker_labels_enabled
-        )
+        # 3. Prepare transcription options using a standard Python dictionary (SAFE METHOD)
+        # This replaces the need for the PrerecordedOptions class.
+        options = {
+            "model": "nova-3",
+            "language": language_code,
+            "smart_format": True,
+            "punctuate": True,
+            "diarize": speaker_labels_enabled,
+            "utterances": speaker_labels_enabled
+        }
 
-        # 4. Transcribe using the FILE PATH method (takes 2 positional args: path, options)
-        # FIX: Arguments must be passed individually to asyncio.to_thread
+        # 4. Transcribe using the FILE PATH method.
+        # Arguments are passed individually to asyncio.to_thread, which is correct.
         response = await asyncio.to_thread(
             deepgram_client.listen.v1.media.transcribe_file,
-            compressed_path, # Positional Argument 1
-            options          # Positional Argument 2
+            compressed_path, # Positional Argument 1: File Path
+            options          # Positional Argument 2: Options Dictionary
         )
 
         # --- Process response ---
