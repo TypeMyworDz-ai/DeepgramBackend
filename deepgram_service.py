@@ -13,7 +13,6 @@ from dotenv import load_dotenv
 
 # CORRECTED IMPORTS for deepgram-sdk==5.0.0
 from deepgram import DeepgramClient
-from deepgram.transcription.prerecorded import PrerecordedOptions # Correct import path
 
 from pydub import AudioSegment
 from typing import Optional
@@ -120,19 +119,19 @@ async def transcribe_audio_deepgram(
         with open(compressed_path, "rb") as audio_file:
             buffer_data = audio_file.read()
 
-        # Transcription options - Using PrerecordedOptions
-        options = PrerecordedOptions(
-            model="nova-3",
-            language=language_code,
-            smart_format=True,
-            punctuate=True,
-            diarize=speaker_labels_enabled,
-            utterances=speaker_labels_enabled
-        )
+        # Transcription options - Defined inline for deepgram-sdk==5.0.0
+        options = {
+            "model": "nova-3",
+            "language": language_code,
+            "smart_format": True,
+            "punctuate": True,
+            "diarize": speaker_labels_enabled,
+            "utterances": speaker_labels_enabled
+        }
 
         # Transcribe (run in thread to avoid blocking)
         response = await asyncio.to_thread(
-            deepgram_client.listen.prerecorded.transcribe_file, # Corrected for SDK v5.x
+            deepgram_client.listen.prerecorded.transcribe_file,
             buffer_data,
             options
         )
