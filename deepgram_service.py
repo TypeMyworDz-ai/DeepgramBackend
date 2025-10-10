@@ -141,15 +141,17 @@ async def transcribe_audio_deepgram(
             options
         )
 
-        # Process response (your existing logic looks good, but added fallback checks)
+        # Process response with enhanced speaker handling
         response_dict = response.to_dict()
         transcript_text = ""
         has_speaker_labels = False
         
         if "results" in response_dict and "channels" in response_dict["results"] and response_dict["results"]["channels"]:
-            if speaker_labels_enabled and "utterances" in response_dict["results"]["channels"][0]["alternatives"][0]:
-                utterances = response_dict["results"]["channels"][0]["alternatives"][0]["utterances"]
-                if utterances:
+            alternative = response_dict["results"]["channels"][0]["alternatives"][0]
+            
+            if speaker_labels_enabled:
+                if "utterances" in alternative and alternative["utterances"]:
+                    utterances = alternative["utterances"]
                     formatted_text = []
                     for utterance in utterances:
                         if 'speaker' in utterance and 'transcript' in utterance:
@@ -158,9 +160,29 @@ async def transcribe_audio_deepgram(
                     if formatted_text:
                         transcript_text = "\n".join(formatted_text)
                         has_speaker_labels = True
-            # Fallback to full transcript
+                elif "words" in alternative and alternative["words"]:  # Fallback to word-level diarization
+                    words = alternative["words"]
+                    formatted_text = []
+                    current_speaker = None
+                    current_line = []
+                    for word in words:
+                        if 'speaker' in word:
+                            speaker = word['speaker'] + 1
+                            if speaker != current_speaker:
+                                if current_line:
+                                    formatted_text.append(f"<strong>Speaker {current_speaker}:</strong> {' '.join(current_line)}")
+                                    current_line = []
+                                current_speaker = speaker
+                            current_line.append(word.get('punctuated_word', word.get('word', '')))
+                    if current_line:  # Add the last line
+                        formatted_text.append(f"<strong>Speaker {current_speaker}:</strong> {' '.join(current_line)}")
+                    if formatted_text:
+                        transcript_text = "\n".join(formatted_text)
+                        has_speaker_labels = True
+            
+            # Fallback to full transcript if no speaker labels processed
             if not transcript_text:
-                transcript_text = response_dict["results"]["channels"][0]["alternatives"][0].get("transcript", "")
+                transcript_text = alternative.get("transcript", "")
 
         logger.info(f"Deepgram transcription completed for {file.filename}")
         return {
