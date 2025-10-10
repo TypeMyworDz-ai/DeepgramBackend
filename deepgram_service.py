@@ -6,12 +6,13 @@ import logging
 import sys
 import os
 import tempfile
+import asyncio
 from fastapi import FastAPI, File, UploadFile, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-# CORRECTED IMPORTS for deepgram-sdk==5.0.0
-from deepgram import DeepgramClient
+# Import only DeepgramClient
+from deepgram import DeepgramClient 
 
 from pydub import AudioSegment
 from typing import Optional
@@ -39,7 +40,7 @@ if not DEEPGRAM_API_KEY:
 deepgram_client = None
 if DEEPGRAM_API_KEY:
     try:
-        # Use api_key as a keyword argument to avoid positional argument issues
+        # Use api_key as a keyword argument
         deepgram_client = DeepgramClient(api_key=DEEPGRAM_API_KEY)
         logger.info("Deepgram client initialized successfully.")
     except Exception as e:
@@ -102,22 +103,19 @@ async def transcribe_audio_deepgram(
         raise HTTPException(status_code=503, detail="Deepgram service is not initialized (API key missing).")
 
     # Save uploaded file temporarily
-    with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1]) as tmp:
-        content = await file.read()
-        tmp.write(content)
-        tmp_path = tmp.name
-
-    compressed_path = tmp_path
-
+    tmp_path = ""
+    compressed_path = ""
     try:
-        # Compress audio
+        # 1. Save original file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1]) as tmp:
+            content = await file.read()
+            tmp.write(content)
+            tmp_path = tmp.name
+        
+        # 2. Compress audio 
         compressed_path = compress_audio_for_transcription(tmp_path)
 
-        # Prepare audio buffer
-        with open(compressed_path, "rb") as audio_file:
-            buffer_data = audio_file.read()
-
-        # Transcription options - Defined inline for deepgram-sdk==5.0.0
+        # 3. Prepare transcription options
         options = {
             "model": "nova-3",
             "language": language_code,
@@ -126,17 +124,17 @@ async def transcribe_audio_deepgram(
             "diarize": speaker_labels_enabled,
             "utterances": speaker_labels_enabled
         }
+        
+        # 4. Transcribe using the FILE PATH (via keyword argument) and options.
+        # FIX: We now pass the file path using the 'path' keyword argument 
+        # to ensure no positional arguments are used, resolving the error.
+        response = await asyncio.to_thread(
+            deepgram_client.listen.v1.media.transcribe_file,
+            path=compressed_path, # FIX: Passed as keyword argument
+            **options             # Options are unpacked as additional keyword arguments 
+        )
 
-        # Combine into a single argument with the expected key
-        transcribe_data = {
-            "buffer": buffer_data,  # Key expected by the SDK
-            **{k: v for k, v in options.items() if v is not None}  # Include only valid options
-        }
-
-        # Transcribe directly (removing asyncio.to_thread to isolate issue)
-        response = deepgram_client.listen.v1.media.transcribe_file(transcribe_data)
-
-        # Process response
+        # --- Process response ---
         response_dict = response.to_dict()
         transcript_text = ""
         has_speaker_labels = False
@@ -149,14 +147,16 @@ async def transcribe_audio_deepgram(
                     formatted_text = []
                     for utterance in utterances:
                         if isinstance(utterance, dict) and 'speaker' in utterance and 'transcript' in utterance:
+                            # Speaker indices are 0-based, display as 1-based
                             speaker_num = utterance['speaker'] + 1
                             formatted_text.append(f"<strong>Speaker {speaker_num}:</strong> {utterance['transcript']}")
                     if formatted_text:
                         transcript_text = "\n".join(formatted_text)
                         has_speaker_labels = True
-                else: # Fallback to full transcript if utterances are empty despite being requested
+                else: 
+                    # Fallback to full transcript if utterances are empty despite being requested
                     transcript_text = response_dict["results"]["channels"][0]["alternatives"][0].get("transcript", "")
-            else: # If speaker labels not enabled or not found in utterances, get full transcript
+            else: # If speaker labels not enabled, get full transcript
                 transcript_text = response_dict["results"]["channels"][0]["alternatives"][0].get("transcript", "")
 
         logger.info(f"Deepgram transcription completed for {file.filename}")
@@ -170,6 +170,7 @@ async def transcribe_audio_deepgram(
 
     except Exception as e:
         logger.error(f"Deepgram transcription failed: {e}")
+        # Re-raise as HTTPException for the client
         raise HTTPException(status_code=500, detail=f"Deepgram transcription failed: {str(e)}")
     finally:
         # Cleanup
