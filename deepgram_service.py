@@ -129,8 +129,9 @@ async def transcribe_audio_deepgram(
         }
 
         # Transcribe (run in thread to avoid blocking)
+        # Updated to use listen.transcribe_file directly
         response = await asyncio.to_thread(
-            deepgram_client.listen.prerecorded.transcribe_file,
+            deepgram_client.listen.transcribe_file,
             buffer_data,
             options
         )
