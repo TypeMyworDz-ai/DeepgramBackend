@@ -13,8 +13,7 @@ from dotenv import load_dotenv
 
 # CORRECTED IMPORTS for deepgram-sdk==5.0.0
 from deepgram import DeepgramClient
-from deepgram.options import ClientOptions as DeepgramClientOptions # Correct import path for ClientOptions
-from deepgram.transcription.prerecorded import PrerecordedOptions # Correct import path for PrerecordedOptions
+from deepgram.transcription.prerecorded import PrerecordedOptions # Correct import path
 
 from pydub import AudioSegment
 from typing import Optional
@@ -42,11 +41,9 @@ if not DEEPGRAM_API_KEY:
 deepgram_client = None
 if DEEPGRAM_API_KEY:
     try:
-        # Instantiating ClientOptions directly
-        config: DeepgramClientOptions = DeepgramClientOptions(
-            verbose=logging.DEBUG if os.environ.get("DEEPGRAM_DEBUG") else logging.INFO
-        )
-        deepgram_client = DeepgramClient(DEEPGRAM_API_KEY, config)
+        # Use verbose directly in DeepgramClient constructor
+        verbose_level = logging.DEBUG if os.environ.get("DEEPGRAM_DEBUG") else logging.INFO
+        deepgram_client = DeepgramClient(DEEPGRAM_API_KEY, verbose=verbose_level)
         logger.info("Deepgram client initialized successfully.")
     except Exception as e:
         logger.error(f"Error initializing Deepgram client: {e}")
@@ -93,7 +90,7 @@ def compress_audio_for_transcription(input_path: str, output_path: str = None) -
         
     except Exception as e:
         logger.error(f"Error compressing audio: {e}")
-        logger.warning(f"Compression failed for {input_path}, returning original.&quot;")
+        logger.warning(f"Compression failed for {input_path}, returning original.")
         return input_path
 
 @app.post("/transcribe")
@@ -134,9 +131,8 @@ async def transcribe_audio_deepgram(
         )
 
         # Transcribe (run in thread to avoid blocking)
-        # CORRECTED LINE for deepgram-sdk==5.0.0
         response = await asyncio.to_thread(
-            deepgram_client.listen.prerecorded.transcribe_file, # No .v("1") needed for SDK v5.x
+            deepgram_client.listen.prerecorded.transcribe_file, # Corrected for SDK v5.x
             buffer_data,
             options
         )
