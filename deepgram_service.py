@@ -1,4 +1,3 @@
-# ==============================================================================
 # deepgram_service.py
 # Dedicated FastAPI service for Deepgram transcription.
 # ==============================================================================
@@ -38,7 +37,7 @@ if not DEEPGRAM_API_KEY:
 deepgram_client = None
 if DEEPGRAM_API_KEY:
     try:
-        deepgram_client = DeepgramClient.from_env()
+        deepgram_client = DeepgramClient(api_key=DEEPGRAM_API_KEY)
         logger.info("Deepgram client initialized successfully.")
     except Exception as e:
         logger.error(f"Error initializing Deepgram client: {e}")
@@ -111,6 +110,7 @@ async def transcribe_audio_deepgram(
         # Compress audio
         compressed_path = compress_audio_for_transcription(tmp_path)
 
+        # Prepare audio buffer
         with open(compressed_path, "rb") as audio_file:
             buffer_data = audio_file.read()
 
@@ -126,9 +126,9 @@ async def transcribe_audio_deepgram(
 
         # Transcribe (run in thread to avoid blocking)
         response = await asyncio.to_thread(
-            deepgram_client.listen.v("1").media.transcribe_file,
-            request=buffer_data,
-            **options
+            deepgram_client.transcription.prerecorded,
+            source={"buffer": buffer_data, "mimetype": "audio/mp3"},
+            options=options
         )
 
         # Process response
