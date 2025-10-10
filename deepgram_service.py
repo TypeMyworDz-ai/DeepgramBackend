@@ -6,12 +6,13 @@ import logging
 import sys
 import os
 import tempfile
+import asyncio
 from fastapi import FastAPI, File, UploadFile, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-# CORRECTED IMPORTS for deepgram-sdk==5.0.0
-from deepgram import DeepgramClient
+# CORRECTED IMPORTS for deepgram-sdk==3.11.0
+from deepgram import DeepgramClient, PrerecordedOptions
 
 from pydub import AudioSegment
 from typing import Optional
@@ -117,49 +118,48 @@ async def transcribe_audio_deepgram(
         with open(compressed_path, "rb") as audio_file:
             buffer_data = audio_file.read()
 
-        # Transcription options - Defined inline for deepgram-sdk==5.0.0
-        options = {
-            "model": "nova-3",
-            "language": language_code,
-            "smart_format": True,
-            "punctuate": True,
-            "diarize": speaker_labels_enabled,
-            "utterances": speaker_labels_enabled
+        # Payload (audio data)
+        payload = {
+            "buffer": buffer_data,
+            "mimetype": "audio/mp3"  # Adjust if needed based on compression
         }
 
-        # Combine into a single argument with corrected key
-        transcribe_data = {
-            "data": buffer_data,  # Corrected from "path" to "data"
-            **{k: v for k, v in options.items() if v is not None}  # Include only valid options
-        }
+        # Transcription options (use PrerecordedOptions for type safety, or dict)
+        options = PrerecordedOptions(
+            model="nova-2",  # Updated to nova-2 for better accuracy (nova-3 might be available by now)
+            language=language_code,
+            smart_format=True,
+            punctuate=True,
+            diarize=speaker_labels_enabled,
+            utterances=speaker_labels_enabled
+        )
 
-        # Debug log to inspect the argument
-        logger.info(f"Transcribe data structure: {transcribe_data}")
+        # Transcribe (correct namespace and two args: payload, options)
+        response = await asyncio.to_thread(
+            deepgram_client.listen.prerecorded.v("1").transcribe_file,
+            payload,
+            options
+        )
 
-        # Transcribe directly with single argument
-        response = deepgram_client.listen.v1.media.transcribe_file(transcribe_data)
-
-        # Process response
+        # Process response (your existing logic looks good, but added fallback checks)
         response_dict = response.to_dict()
         transcript_text = ""
         has_speaker_labels = False
         
         if "results" in response_dict and "channels" in response_dict["results"] and response_dict["results"]["channels"]:
-            # Check for paragraphs/utterances first if speaker labels are enabled
-            if speaker_labels_enabled and "utterances" in response_dict["results"]:
-                utterances = response_dict["results"]["utterances"]
+            if speaker_labels_enabled and "utterances" in response_dict["results"]["channels"][0]["alternatives"][0]:
+                utterances = response_dict["results"]["channels"][0]["alternatives"][0]["utterances"]
                 if utterances:
                     formatted_text = []
                     for utterance in utterances:
-                        if isinstance(utterance, dict) and 'speaker' in utterance and 'transcript' in utterance:
+                        if 'speaker' in utterance and 'transcript' in utterance:
                             speaker_num = utterance['speaker'] + 1
                             formatted_text.append(f"<strong>Speaker {speaker_num}:</strong> {utterance['transcript']}")
                     if formatted_text:
                         transcript_text = "\n".join(formatted_text)
                         has_speaker_labels = True
-                else: # Fallback to full transcript if utterances are empty despite being requested
-                    transcript_text = response_dict["results"]["channels"][0]["alternatives"][0].get("transcript", "")
-            else: # If speaker labels not enabled or not found in utterances, get full transcript
+            # Fallback to full transcript
+            if not transcript_text:
                 transcript_text = response_dict["results"]["channels"][0]["alternatives"][0].get("transcript", "")
 
         logger.info(f"Deepgram transcription completed for {file.filename}")
