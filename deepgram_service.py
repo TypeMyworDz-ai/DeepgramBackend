@@ -10,7 +10,14 @@ import asyncio
 from fastapi import FastAPI, File, UploadFile, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-from deepgram import DeepgramClient, DeepgramClientOptions, LiveTranscriptionEvents, LiveOptions, PrerecordedOptions # Import necessary classes
+
+# CORRECTED IMPORTS for deepgram-sdk==5.0.0
+from deepgram import DeepgramClient
+from deepgram.client.options import ClientOptions as DeepgramClientOptions # Renamed and moved
+from deepgram.features.prerecorded.options import PrerecordedOptions # Moved
+# LiveTranscriptionEvents, LiveOptions are for live transcription, not prerecorded.
+# Removed them as they are not used in this service's current functionality.
+
 from pydub import AudioSegment
 from typing import Optional
 
@@ -28,7 +35,7 @@ load_dotenv()
 
 # Deepgram API Key
 DEEPGRAM_API_KEY = os.environ.get("DEEPGRAM_API_KEY")
-logger.info(f"DEBUG: Environment variable 'DEEPGRAM_API_KEY' found: {bool(DEEPGRAM_API_KEY)}")
+logger.info(f"DEBUG: Environment variable 'DEEPGRAM_API_KEY' found: {bool(DEEPgramClientOptions)}")
 
 if not DEEPGRAM_API_KEY:
     logger.error("DEEPGRAM_API_KEY not configured. Deepgram service will not function.")
@@ -38,6 +45,7 @@ deepgram_client = None
 if DEEPGRAM_API_KEY:
     try:
         # It's good practice to pass options explicitly
+        # Instantiating ClientOptions directly
         config: DeepgramClientOptions = DeepgramClientOptions(
             verbose=logging.DEBUG if os.environ.get("DEEPGRAM_DEBUG") else logging.INFO
         )
@@ -125,19 +133,19 @@ async def transcribe_audio_deepgram(
             smart_format=True,
             punctuate=True,
             diarize=speaker_labels_enabled,
-            utterances=speaker_labels_enabled # This enables utterance segmentation for diarization
+            utterances=speaker_labels_enabled
         )
 
         # Transcribe (run in thread to avoid blocking)
-        # CORRECTED LINE: Access listen.prerecorded.v("1")
+        # CORRECTED LINE for deepgram-sdk==5.0.0
         response = await asyncio.to_thread(
-            deepgram_client.listen.prerecorded.v("1").transcribe_file, # Use transcribe_file with buffer
+            deepgram_client.listen.prerecorded.v("1").transcribe_file,
             buffer_data,
             options
         )
 
         # Process response
-        response_dict = response.to_dict() # DeepgramClient response object has to_dict()
+        response_dict = response.to_dict()
         transcript_text = ""
         has_speaker_labels = False
         
@@ -174,7 +182,7 @@ async def transcribe_audio_deepgram(
     finally:
         # Cleanup
         for path in [tmp_path, compressed_path]:
-            if os.path.exists(path): # Check if path exists before unlinking
+            if os.path.exists(path):
                 os.unlink(path)
                 logger.info(f"Cleaned up temp file: {path}")
 
