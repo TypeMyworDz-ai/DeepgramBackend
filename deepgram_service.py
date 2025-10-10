@@ -125,13 +125,13 @@ async def transcribe_audio_deepgram(
             "utterances": speaker_labels_enabled
         }
         
-        # 4. Transcribe using the FILE PATH (via keyword argument) and options.
-        # FIX: We now pass the file path using the 'path' keyword argument 
-        # to ensure no positional arguments are used, resolving the error.
+        # 4. Transcribe using the FILE PATH (positional argument) and options (keyword arguments).
+        # FIX: Reverting the file path to be the first positional argument. 
+        # This is the correct v5 SDK approach when passing options as a dict.
         response = await asyncio.to_thread(
             deepgram_client.listen.v1.media.transcribe_file,
-            path=compressed_path, # FIX: Passed as keyword argument
-            **options             # Options are unpacked as additional keyword arguments 
+            compressed_path,  # FIX: Passed as the 1st positional argument
+            **options         # Options are unpacked as keyword arguments 
         )
 
         # --- Process response ---
