@@ -128,12 +128,16 @@ async def transcribe_audio_deepgram(
             "utterances": speaker_labels_enabled
         }
 
+        # Combine buffer data and options into a single argument
+        transcribe_data = {
+            "buffer": buffer_data,
+            **options
+        }
+
         # Transcribe (run in thread to avoid blocking)
-        # Using v1.media.transcribe_file based on debug output
         response = await asyncio.to_thread(
             deepgram_client.listen.v1.media.transcribe_file,
-            buffer_data,
-            options
+            transcribe_data
         )
 
         # Process response
