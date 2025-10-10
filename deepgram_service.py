@@ -40,9 +40,8 @@ if not DEEPGRAM_API_KEY:
 deepgram_client = None
 if DEEPGRAM_API_KEY:
     try:
-        # Use verbose directly in DeepgramClient constructor
-        verbose_level = logging.DEBUG if os.environ.get("DEEPGRAM_DEBUG") else logging.INFO
-        deepgram_client = DeepgramClient(DEEPGRAM_API_KEY, verbose=verbose_level)
+        # Remove verbose parameter and rely on global logging configuration
+        deepgram_client = DeepgramClient(DEEPGRAM_API_KEY)
         logger.info("Deepgram client initialized successfully.")
     except Exception as e:
         logger.error(f"Error initializing Deepgram client: {e}")
