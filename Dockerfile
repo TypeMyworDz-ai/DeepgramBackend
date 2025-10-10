@@ -25,8 +25,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the Deepgram service code into the container
 COPY deepgram_service.py .
 
-# Command to run your Deepgram service
-# If using a web framework like Flask or FastAPI, use gunicorn/uvicorn:
-# CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:8000", "deepgram_service:app"]
-# If it's a simple script, use:
-# CMD ["python", "deepgram_service.py"]
+# Command to run your Deepgram service using Gunicorn for the Flask app
+CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:8000", "deepgram_service:app"]
