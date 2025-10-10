@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
 # CORRECTED IMPORTS for deepgram-sdk==5.0.0
-from deepgram import DeepgramClient, PrerecordedOptions  # Assuming PrerecordedOptions is available
+from deepgram import DeepgramClient
 
 from pydub import AudioSegment
 from typing import Optional
@@ -128,10 +128,10 @@ async def transcribe_audio_deepgram(
             "utterances": speaker_labels_enabled
         }
 
-        # Combine buffer data and options into a single argument
+        # Combine into a single argument with the expected key
         transcribe_data = {
-            "buffer": buffer_data,
-            **options
+            "buffer": buffer_data,  # Key expected by the SDK
+            **{k: v for k, v in options.items() if v is not None}  # Include only valid options
         }
 
         # Transcribe (run in thread with single argument)
