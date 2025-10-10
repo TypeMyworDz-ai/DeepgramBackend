@@ -128,14 +128,14 @@ async def transcribe_audio_deepgram(
             "utterances": speaker_labels_enabled
         }
 
-        # Debug: Log available methods on listen client
-        if deepgram_client and hasattr(deepgram_client, 'listen'):
-            logger.info(f"Available methods on listen client: {dir(deepgram_client.listen)}")
+        # Debug: Log available methods on v1 client (optional, can be removed after confirmation)
+        if deepgram_client and hasattr(deepgram_client.listen, 'v1'):
+            logger.info(f"Available methods on listen.v1: {dir(deepgram_client.listen.v1)}")
 
         # Transcribe (run in thread to avoid blocking)
-        # Trying a plausible alternative method
+        # Using v1 interface with transcribe_file
         response = await asyncio.to_thread(
-            deepgram_client.listen.transcription.transcribe,  # Hypothesized structure
+            deepgram_client.listen.v1.transcribe_file,
             buffer_data,
             options
         )
