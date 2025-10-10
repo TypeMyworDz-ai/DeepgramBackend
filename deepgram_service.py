@@ -135,10 +135,10 @@ async def transcribe_audio_deepgram(
         }
 
         # Transcribe (run in thread to avoid blocking)
-        # Using keyword argument to pass transcribe_data
+        # Passing transcribe_data as a single positional argument
         response = await asyncio.to_thread(
             deepgram_client.listen.v1.media.transcribe_file,
-            data=transcribe_data
+            transcribe_data
         )
 
         # Process response
