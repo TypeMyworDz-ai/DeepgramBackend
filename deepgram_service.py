@@ -12,8 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
 # CORRECTED IMPORTS for deepgram-sdk==5.0.0
-from deepgram import DeepgramClient, ClientOptions # ClientOptions is directly under deepgram
-from deepgram.transcription import PrerecordedOptions # PrerecordedOptions is directly under deepgram.transcription
+from deepgram import DeepgramClient
 
 from pydub import AudioSegment
 from typing import Optional
@@ -41,11 +40,8 @@ if not DEEPGRAM_API_KEY:
 deepgram_client = None
 if DEEPGRAM_API_KEY:
     try:
-        # Instantiating ClientOptions directly
-        config: ClientOptions = ClientOptions( # Use ClientOptions directly
-            verbose=logging.DEBUG if os.environ.get("DEEPGRAM_DEBUG") else logging.INFO
-        )
-        deepgram_client = DeepgramClient(DEEPGRAM_API_KEY, config)
+        # Use api_key as a keyword argument to avoid positional argument issues
+        deepgram_client = DeepgramClient(api_key=DEEPGRAM_API_KEY)
         logger.info("Deepgram client initialized successfully.")
     except Exception as e:
         logger.error(f"Error initializing Deepgram client: {e}")
@@ -122,20 +118,24 @@ async def transcribe_audio_deepgram(
         with open(compressed_path, "rb") as audio_file:
             buffer_data = audio_file.read()
 
-        # Transcription options - Using PrerecordedOptions
-        options = PrerecordedOptions(
-            model="nova-3",
-            language=language_code,
-            smart_format=True,
-            punctuate=True,
-            diarize=speaker_labels_enabled,
-            utterances=speaker_labels_enabled
-        )
+        # Transcription options - Defined inline for deepgram-sdk==5.0.0
+        options = {
+            "model": "nova-3",
+            "language": language_code,
+            "smart_format": True,
+            "punctuate": True,
+            "diarize": speaker_labels_enabled,
+            "utterances": speaker_labels_enabled
+        }
+
+        # Debug: Log available methods on listen client
+        if deepgram_client and hasattr(deepgram_client, 'listen'):
+            logger.info(f"Available methods on listen client: {dir(deepgram_client.listen)}")
 
         # Transcribe (run in thread to avoid blocking)
-        # CORRECTED LINE for deepgram-sdk==5.0.0
+        # Trying a plausible alternative method
         response = await asyncio.to_thread(
-            deepgram_client.listen.prerecorded.transcribe_file, # Correct method for file buffer in v5.x
+            deepgram_client.listen.transcription.transcribe,  # Hypothesized structure
             buffer_data,
             options
         )
