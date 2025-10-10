@@ -114,6 +114,10 @@ async def transcribe_audio_deepgram(
         # Compress audio
         compressed_path = compress_audio_for_transcription(tmp_path)
 
+        # Prepare audio buffer
+        with open(compressed_path, "rb") as audio_file:
+            buffer_data = audio_file.read()
+
         # Transcription options - Defined inline for deepgram-sdk==5.0.0
         options = {
             "model": "nova-3",
@@ -124,12 +128,10 @@ async def transcribe_audio_deepgram(
             "utterances": speaker_labels_enabled
         }
 
-        # Transcribe (run in thread to avoid blocking)
-        # Using file path method with two positional arguments
+        # Transcribe (run in thread with explicit argument tuple)
         response = await asyncio.to_thread(
             deepgram_client.listen.v1.media.transcribe_file,
-            compressed_path,  # Positional Argument 1 (File Path)
-            options           # Positional Argument 2 (Options)
+            (buffer_data, options)  # Tuple of positional arguments
         )
 
         # Process response
