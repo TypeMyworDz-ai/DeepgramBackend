@@ -5,6 +5,7 @@
 import logging
 import sys
 import os
+import functools
 import tempfile
 import asyncio
 from fastapi import FastAPI, File, UploadFile, HTTPException, Form
@@ -134,11 +135,21 @@ async def transcribe_audio_deepgram(
             utterances=speaker_labels_enabled
         )
 
+        # Opt every request out of Deepgram's Model Improvement Program so that
+        # client audio and transcripts are never used to train Deepgram's models.
+        # Deepgram treats this as a query parameter; the SDK exposes unsupported
+        # query parameters through "addons".
+        # https://developers.deepgram.com/docs/the-deepgram-model-improvement-partnership-program
+        privacy_addons = {"mip_opt_out": "true"}
+
         # Transcribe (correct namespace and two args: payload, options)
         response = await asyncio.to_thread(
-            deepgram_client.listen.prerecorded.v("1").transcribe_file,
-            payload,
-            options
+            functools.partial(
+                deepgram_client.listen.prerecorded.v("1").transcribe_file,
+                payload,
+                options,
+                addons=privacy_addons,
+            )
         )
 
         # Process response with enhanced speaker handling
